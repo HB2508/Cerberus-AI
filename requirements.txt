@@ -1,6 +1,9 @@
-streamlit
+streamlit==1.31.0
 pandas
 yfinance
-numpy
+numpy==1.26.4
 alpaca-py
+transformers
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch
 st-paywall==4.0.1
