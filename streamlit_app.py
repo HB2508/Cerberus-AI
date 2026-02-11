@@ -8,6 +8,7 @@ from alpaca.trading.enums import OrderSide, TimeInForce
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 import torch
 from st_paywall import add_auth
+import stripe  # Final addition 1
 
 # --- 0. CORE BRANDING & PROFESSIONAL THEME ---
 st.set_page_config(
@@ -16,6 +17,9 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded"
 )
+
+# Final addition 2: Links your secrets to the stripe library
+stripe.api_key = st.secrets["STRIPE_API_KEY"]
 
 # Custom Institutional Blue CSS
 st.markdown("""
@@ -34,7 +38,6 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # 2026 PAYWALL GATEWAY
-# Note: Ensure STRIPE_API_KEY & STRIPE_PRICING_ID are in your secrets.toml
 add_auth(required=True)
 
 # --- 1. INITIALIZE SESSION STATE ---
@@ -45,7 +48,7 @@ if "trading_client" not in st.session_state:
 if "calc_done" not in st.session_state:
     st.session_state.calc_done = False
 
-# --- 2. THE LEGAL COMPLIANCE LAYER (2026 Standards) ---
+# --- 2. THE LEGAL COMPLIANCE LAYER ---
 def show_masthead_and_legal():
     st.title("🐕‍🦺 CERBERUS")
     st.caption("### Institutional Asset Research & Quantitative Sentiment Engine")
@@ -65,6 +68,9 @@ with st.sidebar:
     st.markdown("---")
     st.write(f"**Founders:** Harry Braime & Archie Pahl")
     st.write(f"**User:** {st.session_state.get('user_email', 'Authenticated User')}")
+    
+    # Optional: Add a button for users to manage their subscription
+    st.link_button("Manage Subscription", "https://billing.stripe.com/p/login/test_your_portal_link")
     st.divider()
     
     if not st.session_state.api_connected:
@@ -75,7 +81,6 @@ with st.sidebar:
         
         if st.button("Initialize Neural Link"):
             try:
-                # Basic validation for live vs paper
                 client = TradingClient(api_key, sec_key, paper=(not is_live))
                 client.get_account() 
                 st.session_state.trading_client = client
@@ -93,14 +98,12 @@ with st.sidebar:
 # --- 4. ENGINE FUNCTIONS ---
 @st.cache_resource
 def load_nlp_model():
-    # FinBERT is specific for financial sentiment
     tokenizer = AutoTokenizer.from_pretrained("ProsusAI/finbert")
     model = AutoModelForSequenceClassification.from_pretrained("ProsusAI/finbert")
     return tokenizer, model
 
 def get_clean_data(symbol):
     try:
-        # Standardize tickers for 2026 cross-market assets
         formatted_ticker = symbol.replace("/", "-").upper()
         df = yf.download(formatted_ticker, period="1y", interval="1d", progress=False)
         return df if not df.empty else None
@@ -123,7 +126,6 @@ if st.session_state.api_connected:
                 tokenizer, model = load_nlp_model()
                 inputs = tokenizer([f"Sentiment analysis for {ticker_input}"], return_tensors="pt")
                 outputs = model(**inputs)
-                # Softmax converts raw logits into probabilities
                 score = torch.nn.functional.softmax(outputs.logits, dim=-1)[0][0].item()
                 
                 st.session_state.current_score = score
@@ -136,22 +138,17 @@ if st.session_state.api_connected:
         st.divider()
         st.subheader(f"Intelligence Dashboard: {st.session_state.current_ticker}")
         
-        # Displaying metrics in professional cards
         m1, m2, m3 = st.columns(3)
         m1.metric("Sentiment Confidence", f"{st.session_state.current_score:.2%}")
         m2.metric("Market Data", "Verified / Live")
         m3.metric("Neural Model", "FinBERT v1.2")
 
         if st.session_state.current_score > 0.6:
-            st.info("💡 **RESEARCH NOTE:** High-confidence positive sentiment detected. This is a model observation, not a buy signal.")
-            
+            st.info("💡 **RESEARCH NOTE:** High-confidence positive sentiment detected.")
             with st.container(border=True):
                 st.write("### 🛒 Fast-Execution Terminal")
-                st.warning("Executing this will place a market order using your Alpaca balance.")
-                
                 if st.button(f"EXECUTE MARKET BUY: 1 unit of {st.session_state.current_ticker}"):
                     try:
-                        # Ensure ticker is Alpaca-compliant (No dashes for crypto)
                         trade_symbol = st.session_state.current_ticker.replace("-", "")
                         order = MarketOrderRequest(
                             symbol=trade_symbol,
@@ -165,11 +162,11 @@ if st.session_state.api_connected:
                     except Exception as e:
                         st.error(f"Execution Failure: {e}")
         else:
-            st.warning("📉 **RESEARCH NOTE:** Sentiment is neutral or negative. Model conditions not met.")
+            st.warning("📉 **RESEARCH NOTE:** Sentiment is neutral or negative.")
 
 else:
     st.info("Please connect your secure API keys via the sidebar to access the research suite.")
 
 # --- 6. FOOTER ---
 st.divider()
-st.caption(f"© 2026 Cerberus Quantitative Suite | Powered by Harry Braime & Archie Pahl. Registered Educational Platform.")
+st.caption(f"© 2026 Cerberus Quantitative Suite | Powered by Harry Braime & Archie Pahl.")
