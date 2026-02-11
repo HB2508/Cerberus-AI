@@ -5,5 +5,5 @@ numpy
 alpaca-py
 transformers
 torch
-st-paywall
+st-paywall==4.0.1
 stripe
